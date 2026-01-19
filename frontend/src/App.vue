@@ -18,12 +18,28 @@ import CardHeader from "@/components/ui/CardHeader.vue";
 import CardTitle from "@/components/ui/CardTitle.vue";
 import CardContent from "@/components/ui/CardContent.vue";
 import Button from "@/components/ui/Button.vue";
+import Toast from "@/components/ui/Toast.vue";
 
 const records = ref([]);
 const selectedRecord = ref(null);
 const isSheetOpen = ref(false);
 const isLoading = ref(true);
 const error = ref(null);
+const isProcessing = ref(false);
+const toast = ref({ show: false, message: '', description: '', variant: 'default' });
+
+const showToast = (message, description = '', variant = 'default', duration = 0) => {
+    toast.value = { show: true, message, description, variant };
+    if (duration > 0) {
+        setTimeout(() => {
+            toast.value.show = false;
+        }, duration);
+    }
+};
+
+const hideToast = () => {
+    toast.value.show = false;
+};
 
 const fetchRecords = async () => {
     try {
@@ -70,6 +86,64 @@ const getPriceDisplay = (record) => {
         return formatCurrency(record.monthlyFee);
     }
     return "-";
+};
+
+const downloadCSV = async () => {
+    try {
+        const response = await fetch('http://localhost:3001/api/processed-urls/export/csv');
+
+        if (!response.ok) {
+            throw new Error('Failed to download CSV');
+        }
+
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = 'processed_urls_export.csv';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        window.URL.revokeObjectURL(url);
+    } catch (error) {
+        console.error('Error downloading CSV:', error);
+        alert('Failed to download CSV. Please try again.');
+    }
+};
+
+const runProcess = async () => {
+    try {
+        isProcessing.value = true;
+        showToast(
+            'Process is running',
+            'Feel free to do something else. The list will refresh automatically when finished.'
+        );
+
+        const response = await fetch('https://n8n.aijarvis.co/webhook/gsc/campaigns-finder', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+        });
+
+        if (!response.ok) {
+            throw new Error('Failed to run process');
+        }
+
+        const result = await response.json();
+
+        if (result.success) {
+            await fetchRecords();
+            showToast('Process completed', 'The list has been refreshed with new data.', 'success', 5000);
+        } else {
+            throw new Error('Process did not complete successfully');
+        }
+    } catch (error) {
+        console.error('Error running process:', error);
+        showToast('Process failed', 'Please try again.', 'destructive', 5000);
+    } finally {
+        isProcessing.value = false;
+    }
 };
 
 const carDetails = computed(() => {
@@ -138,13 +212,41 @@ onMounted(() => {
 <template>
     <div class="min-h-screen bg-background">
         <div class="container mx-auto py-10">
-            <div class="mb-8">
-                <h1 class="text-4xl font-bold tracking-tight">
-                    Brands Dashboard
-                </h1>
-                <p class="text-muted-foreground mt-2">
-                    View and manage processed URLs and campaigns
-                </p>
+            <div class="mb-8 flex items-center justify-between">
+                <div>
+                    <h1 class="text-4xl font-bold tracking-tight">
+                        Brands Dashboard
+                    </h1>
+                    <p class="text-muted-foreground mt-2">
+                        View and manage processed URLs and campaigns
+                    </p>
+                </div>
+                <div class="flex items-center gap-2">
+                    <Button
+                        @click="runProcess"
+                        variant="default"
+                        class="flex items-center gap-2"
+                        :disabled="isProcessing"
+                    >
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <polygon points="5,3 19,12 5,21 5,3"/>
+                        </svg>
+                        {{ isProcessing ? 'Processing...' : 'Run Process' }}
+                    </Button>
+                    <Button
+                        @click="downloadCSV"
+                        variant="outline"
+                        class="flex items-center gap-2"
+                        :disabled="isLoading"
+                    >
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                            <polyline points="7,10 12,15 17,10"/>
+                            <line x1="12" y1="15" x2="12" y2="3"/>
+                        </svg>
+                        Download CSV
+                    </Button>
+                </div>
             </div>
 
             <!-- Error Message -->
@@ -393,5 +495,26 @@ onMounted(() => {
                 </div>
             </SheetContent>
         </Sheet>
+
+        <!-- Toast Notification -->
+        <Teleport to="body">
+            <Transition
+                enter-active-class="transition ease-out duration-300"
+                enter-from-class="opacity-0 translate-y-2"
+                enter-to-class="opacity-100 translate-y-0"
+                leave-active-class="transition ease-in duration-200"
+                leave-from-class="opacity-100 translate-y-0"
+                leave-to-class="opacity-0 translate-y-2"
+            >
+                <div v-if="toast.show" class="fixed bottom-4 right-4 z-50 max-w-md">
+                    <Toast :variant="toast.variant" @close="hideToast">
+                        <div class="grid gap-1">
+                            <p class="text-sm font-semibold">{{ toast.message }}</p>
+                            <p v-if="toast.description" class="text-sm opacity-90">{{ toast.description }}</p>
+                        </div>
+                    </Toast>
+                </div>
+            </Transition>
+        </Teleport>
     </div>
 </template>

@@ -56,7 +56,37 @@ The `processed_urls.result` JSONB field contains nested campaign data that gets 
 
 ### Environment Configuration
 - Backend: Requires `.env` file with database credentials
-- Frontend: Optional `.env` for API URL override (defaults to http://localhost:3001/api)
+- Frontend: Optional `.env` for API URL override (defaults to /api)
+
+## Vercel Deployment
+
+This project is configured as a monorepo for Vercel deployment:
+
+### Structure
+- `frontend/` - Vue 3 SPA (builds to `frontend/dist/`)
+- `api/` - Vercel Serverless Functions (PostgreSQL API endpoints)
+- `backend/` - Express server (for local development only)
+
+### Serverless Functions (`api/`)
+- `api/processed-urls/index.js` - GET all processed URLs
+- `api/processed-urls/[id].js` - GET single processed URL by ID
+- `api/processed-urls/export/csv.js` - Export data as CSV
+- `api/health.js` - Health check endpoint
+- `api/_lib/db.js` - Shared database connection pool
+
+### Vercel Environment Variables
+Set these in Vercel Dashboard → Settings → Environment Variables:
+- `DB_HOST` - PostgreSQL host
+- `DB_PORT` - PostgreSQL port (default: 5432)
+- `DB_NAME` - Database name
+- `DB_USER` - Database user
+- `DB_PASSWORD` - Database password
+- `DB_SSL` - Set to "true" for SSL connections
+
+### Deployment
+1. Connect repository to Vercel
+2. Set environment variables in Vercel Dashboard
+3. Deploy (Vercel auto-detects `vercel.json` configuration)
 
 ## Key Files to Understand
 - `backend/server.js:35-59` - Data transformation logic for API responses

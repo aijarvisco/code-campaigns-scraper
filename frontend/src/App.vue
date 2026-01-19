@@ -90,7 +90,7 @@ const getPriceDisplay = (record) => {
 
 const downloadCSV = async () => {
     try {
-        const response = await fetch('http://localhost:3001/api/processed-urls/export/csv');
+        const response = await fetch('/api/processed-urls/export/csv');
 
         if (!response.ok) {
             throw new Error('Failed to download CSV');

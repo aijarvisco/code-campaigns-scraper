@@ -1,0 +1,31 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "buildCommand": "cd frontend && npm run build",
+  "outputDirectory": "frontend/dist",
+  "installCommand": "npm install && cd frontend && npm install",
+  "framework": null,
+  "functions": {
+    "api/**/*.js": {
+      "memory": 1024,
+      "maxDuration": 10
+    }
+  },
+  "rewrites": [
+    {
+      "source": "/api/processed-urls/export/csv",
+      "destination": "/api/processed-urls/export/csv"
+    },
+    {
+      "source": "/api/processed-urls/:id",
+      "destination": "/api/processed-urls/[id]"
+    },
+    {
+      "source": "/api/processed-urls",
+      "destination": "/api/processed-urls/index"
+    },
+    {
+      "source": "/api/health",
+      "destination": "/api/health"
+    }
+  ]
+}
